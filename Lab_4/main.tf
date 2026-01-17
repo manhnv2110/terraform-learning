@@ -1,5 +1,9 @@
+#terraform init
+#terraform plan
+#terraform apply
+#terraform destroy
 provider "aws" {
-    region = "ap-southeast-1"
+    region = var.region
 }
 
 resource "aws_key_pair" "ec2-aws_key_pair" {
@@ -8,8 +12,8 @@ resource "aws_key_pair" "ec2-aws_key_pair" {
 }
 
 resource "aws_instance" "iac-demo" {
-  ami           = "ami-01dc51e87421923b6"
-  instance_type = "t2.micro"
+  ami           = var.amis[var.region]
+  instance_type = var.instance_type
   key_name = aws_key_pair.ec2-aws_key_pair.key_name
   tags = {
     Name = "demo-instance-iac"
@@ -17,12 +21,15 @@ resource "aws_instance" "iac-demo" {
   vpc_security_group_ids = [aws_security_group.ec2-sg.id]
 }
  
+ resource "aws_eip" "demo-eip" {
+   instance = aws_instance.iac-demo.id
+ }
  resource "aws_security_group" "ec2-sg" {
   name        = "ec2-sg"
   description = "Allow TLS inbound traffic and all outbound traffic"
-  vpc_id = data.aws_vpc.default.id
+  # vpc_id = data.aws_vpc.default.id
 
-  ingress = {
+  ingress {
     from_port        = 80
     to_port          = 80
     protocol         = "tcp"
@@ -48,10 +55,23 @@ resource "aws_instance" "iac-demo" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+output "instance_ip_addr_public" {
+  value = aws_eip.demo-eip.public_ip
+}
+
+output "instance_ip_addr_private" {
+  value = aws_instance.iac-demo.private_ip
+}
+
+output "sg_id" {
+  value = aws_security_group.ec2-sg.id
 }
